@@ -159,7 +159,7 @@ See `config/voltpanel.php` for all available options including path, middleware,
 
 ## Documentation
 
-Full documentation is available at [https://rhaima96.github.io/voltpanel](https://rhaima96.github.io/voltpanel).
+Full documentation is available at [https://rhaima96.github.io/voltpanel-docs](https://rhaima96.github.io/voltpanel-docs).
 
 ## Tech Stack
 
