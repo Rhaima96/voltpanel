@@ -1,0 +1,77 @@
+{
+    "name": "rhaima/voltpanel",
+    "description": "A powerful admin panel builder for Laravel using the VILT stack (Vue, Inertia, Laravel, Tailwind)",
+    "keywords": [
+        "laravel",
+        "admin",
+        "panel",
+        "vue",
+        "inertia",
+        "tailwind",
+        "crud",
+        "vilt"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mohamed Touhami Rhaima",
+            "email": "mohamed.rhaima96@gmail.com",
+            "homepage": "https://github.com/rhaima96",
+            "role": "Developer"
+        }
+    ],
+    "homepage": "https://github.com/rhaima96/voltpanel",
+    "support": {
+        "issues": "https://github.com/rhaima96/voltpanel/issues",
+        "source": "https://github.com/rhaima96/voltpanel"
+    },
+    "require": {
+        "php": "^8.2",
+        "dompdf/dompdf": "^3.0",
+        "illuminate/contracts": "^11.0|^12.0",
+        "inertiajs/inertia-laravel": "^2.0",
+        "openspout/openspout": "^4.0",
+        "pragmarx/google2fa": "^8.0|^9.0",
+        "spatie/laravel-package-tools": "^1.16"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^9.0",
+        "pestphp/pest": "^3.0",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "Rhaima\\VoltPanel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Rhaima\\VoltPanel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Rhaima\\VoltPanel\\VoltPanelServiceProvider"
+            ],
+            "aliases": {
+                "VoltPanel": "Rhaima\\VoltPanel\\Facades\\VoltPanel"
+            }
+        }
+    },
+    "scripts": {
+        "analyse": "vendor/bin/phpstan analyse",
+        "format": "vendor/bin/pint",
+        "test": "vendor/bin/pest"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

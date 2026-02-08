@@ -1,0 +1,289 @@
+/* VoltPanel Custom Styles - Tailwind CSS v4 */
+
+/*
+ * Tailwind v4 uses CSS-first configuration with @theme
+ * This file is designed to work with @import 'tailwindcss' in your app.css
+ */
+
+@layer base {
+    :root {
+        /* VoltPanel primary color tokens */
+        --vp-primary: var(--color-indigo-600, oklch(0.511 0.262 276.966));
+        --vp-primary-hover: var(--color-indigo-700, oklch(0.457 0.24 277.023));
+        --vp-primary-light: var(--color-indigo-500, oklch(0.585 0.233 277.117));
+        --vp-primary-lighter: var(--color-indigo-400, oklch(0.673 0.182 276.935));
+    }
+
+    .dark {
+        --vp-primary: var(--color-indigo-500, oklch(0.585 0.233 277.117));
+        --vp-primary-hover: var(--color-indigo-400, oklch(0.673 0.182 276.935));
+        --vp-primary-light: var(--color-indigo-400, oklch(0.673 0.182 276.935));
+        --vp-primary-lighter: var(--color-indigo-300, oklch(0.757 0.132 276.935));
+    }
+
+    a,
+    button,
+    [role="button"],
+    input[type="submit"],
+    input[type="button"],
+    input[type="reset"],
+    select,
+    .cursor-pointer {
+        cursor: pointer;
+    }
+}
+
+@layer components {
+    /* Primary color utilities using CSS variables */
+    .bg-primary-50 { background-color: var(--color-indigo-50, oklch(0.962 0.018 272.314)); }
+    .bg-primary-100 { background-color: var(--color-indigo-100, oklch(0.93 0.034 272.788)); }
+    .bg-primary-500 { background-color: var(--color-indigo-500, oklch(0.585 0.233 277.117)); }
+    .bg-primary-600 { background-color: var(--color-indigo-600, oklch(0.511 0.262 276.966)); }
+    .bg-primary-700 { background-color: var(--color-indigo-700, oklch(0.457 0.24 277.023)); }
+    .bg-primary-900 { background-color: var(--color-indigo-900, oklch(0.359 0.144 278.697)); }
+
+    .text-primary-300 { color: var(--color-indigo-300, oklch(0.757 0.132 276.935)); }
+    .text-primary-400 { color: var(--color-indigo-400, oklch(0.673 0.182 276.935)); }
+    .text-primary-500 { color: var(--color-indigo-500, oklch(0.585 0.233 277.117)); }
+    .text-primary-600 { color: var(--color-indigo-600, oklch(0.511 0.262 276.966)); }
+    .text-primary-700 { color: var(--color-indigo-700, oklch(0.457 0.24 277.023)); }
+    .text-primary-900 { color: var(--color-indigo-900, oklch(0.359 0.144 278.697)); }
+
+    .border-primary-500 { border-color: var(--color-indigo-500, oklch(0.585 0.233 277.117)); }
+    .border-primary-600 { border-color: var(--color-indigo-600, oklch(0.511 0.262 276.966)); }
+
+    .ring-primary-500 { --tw-ring-color: var(--color-indigo-500, oklch(0.585 0.233 277.117)); }
+    .ring-primary-400 { --tw-ring-color: var(--color-indigo-400, oklch(0.673 0.182 276.935)); }
+
+    /* Form field animations */
+    .form-field input:focus,
+    .form-field textarea:focus,
+    .form-field select:focus {
+        outline: none;
+        --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+        --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+        box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+        --tw-ring-color: var(--color-indigo-500, oklch(0.585 0.233 277.117));
+    }
+
+    .dark .form-field input:focus,
+    .dark .form-field textarea:focus,
+    .dark .form-field select:focus {
+        --tw-ring-color: var(--color-indigo-400, oklch(0.673 0.182 276.935));
+    }
+
+    /* Table hover effects */
+    table tbody tr {
+        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+    }
+
+    table tbody tr:hover {
+        background-color: var(--color-gray-50, oklch(0.985 0.002 247.839));
+    }
+
+    .dark table tbody tr:hover {
+        background-color: color-mix(in oklch, var(--color-gray-800, oklch(0.278 0.033 256.848)) 50%, transparent);
+    }
+
+    /* Card styles */
+    .vp-card {
+        background-color: var(--color-white, #fff);
+        border-radius: var(--radius-lg, 0.5rem);
+        box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+        border-width: 1px;
+        border-color: var(--color-gray-200, oklch(0.928 0.006 264.531));
+    }
+
+    .dark .vp-card {
+        background-color: var(--color-gray-800, oklch(0.278 0.033 256.848));
+        border-color: var(--color-gray-700, oklch(0.373 0.034 259.733));
+    }
+
+    /* Button styles */
+    .vp-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background-color: var(--color-indigo-600, oklch(0.511 0.262 276.966));
+        border: 1px solid transparent;
+        border-radius: var(--radius-md, 0.375rem);
+        font-weight: 600;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        color: var(--color-white, #fff);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+    }
+
+    .vp-btn-primary:hover {
+        background-color: var(--color-indigo-700, oklch(0.457 0.24 277.023));
+    }
+
+    .vp-btn-primary:focus {
+        outline: none;
+        --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width, 2px) var(--tw-ring-offset-color);
+        --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width, 2px)) var(--tw-ring-color);
+        box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+        --tw-ring-color: var(--color-indigo-500, oklch(0.585 0.233 277.117));
+    }
+
+    .vp-btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background-color: var(--color-white, #fff);
+        border: 1px solid var(--color-gray-300, oklch(0.872 0.01 258.338));
+        border-radius: var(--radius-md, 0.375rem);
+        font-weight: 600;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        color: var(--color-gray-700, oklch(0.373 0.034 259.733));
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+    }
+
+    .dark .vp-btn-secondary {
+        background-color: var(--color-gray-800, oklch(0.278 0.033 256.848));
+        border-color: var(--color-gray-500, oklch(0.551 0.027 264.364));
+        color: var(--color-gray-300, oklch(0.872 0.01 258.338));
+    }
+
+    .vp-btn-secondary:hover {
+        background-color: var(--color-gray-50, oklch(0.985 0.002 247.839));
+    }
+
+    .dark .vp-btn-secondary:hover {
+        background-color: var(--color-gray-700, oklch(0.373 0.034 259.733));
+    }
+
+    .vp-btn-danger {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background-color: var(--color-red-600, oklch(0.577 0.245 27.325));
+        border: 1px solid transparent;
+        border-radius: var(--radius-md, 0.375rem);
+        font-weight: 600;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        color: var(--color-white, #fff);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 150ms;
+    }
+
+    .vp-btn-danger:hover {
+        background-color: var(--color-red-500, oklch(0.637 0.237 25.331));
+    }
+
+    /* Input styles */
+    .vp-input {
+        border-color: var(--color-gray-300, oklch(0.872 0.01 258.338));
+        border-radius: var(--radius-md, 0.375rem);
+        box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+    }
+
+    .dark .vp-input {
+        border-color: var(--color-gray-700, oklch(0.373 0.034 259.733));
+        background-color: var(--color-gray-900, oklch(0.21 0.034 264.665));
+        color: var(--color-gray-300, oklch(0.872 0.01 258.338));
+    }
+
+    .vp-input:focus {
+        border-color: var(--color-indigo-500, oklch(0.585 0.233 277.117));
+        --tw-ring-color: var(--color-indigo-500, oklch(0.585 0.233 277.117));
+    }
+
+    .dark .vp-input:focus {
+        border-color: var(--color-indigo-600, oklch(0.511 0.262 276.966));
+        --tw-ring-color: var(--color-indigo-600, oklch(0.511 0.262 276.966));
+    }
+
+    /* Label styles */
+    .vp-label {
+        display: block;
+        font-weight: 500;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: var(--color-gray-700, oklch(0.373 0.034 259.733));
+    }
+
+    .dark .vp-label {
+        color: var(--color-gray-300, oklch(0.872 0.01 258.338));
+    }
+}
+
+@layer utilities {
+    /* Scrollbar styles */
+    .vp-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .vp-scrollbar::-webkit-scrollbar-track {
+        background-color: var(--color-gray-100, oklch(0.967 0.003 264.542));
+    }
+
+    .dark .vp-scrollbar::-webkit-scrollbar-track {
+        background-color: var(--color-gray-800, oklch(0.278 0.033 256.848));
+    }
+
+    .vp-scrollbar::-webkit-scrollbar-thumb {
+        background-color: var(--color-gray-300, oklch(0.872 0.01 258.338));
+        border-radius: var(--radius-DEFAULT, 0.25rem);
+    }
+
+    .dark .vp-scrollbar::-webkit-scrollbar-thumb {
+        background-color: var(--color-gray-600, oklch(0.446 0.03 256.802));
+    }
+
+    .vp-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-gray-400, oklch(0.704 0.022 261.325));
+    }
+
+    .dark .vp-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-gray-500, oklch(0.551 0.027 264.364));
+    }
+}
+
+/* Global scrollbar styles */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--color-gray-100, oklch(0.967 0.003 264.542));
+}
+
+.dark ::-webkit-scrollbar-track {
+    background-color: var(--color-gray-800, oklch(0.278 0.033 256.848));
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--color-gray-300, oklch(0.872 0.01 258.338));
+    border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background-color: var(--color-gray-600, oklch(0.446 0.03 256.802));
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-gray-400, oklch(0.704 0.022 261.325));
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-gray-500, oklch(0.551 0.027 264.364));
+}

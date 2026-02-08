@@ -1,0 +1,844 @@
+<?php
+
+namespace Rhaima\VoltPanel\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
+
+class SetupCommand extends Command
+{
+    protected $signature = 'voltpanel:setup
+                            {--force : Overwrite existing files}
+                            {--typescript : Use TypeScript instead of JavaScript}
+                            {--javascript : Use JavaScript instead of TypeScript}
+                            {--lowercase : Use lowercase folder names (official starter kit)}
+                            {--capitalized : Use capitalized folder names (Breeze)}
+                            {--tailwind-v3 : Use Tailwind CSS v3}
+                            {--tailwind-v4 : Use Tailwind CSS v4}';
+
+    protected $description = 'Setup Vue 3 + Inertia.js + Tailwind CSS stack for VoltPanel';
+
+    protected bool $useTypeScript = false;
+    protected bool $useLowercaseFolders = true; // Default to lowercase (official starter kit)
+    protected bool $useTailwindV4 = true; // Default to v4 (official starter kit)
+
+    public function handle(): int
+    {
+        $this->components->info('VoltPanel Setup Wizard');
+        $this->newLine();
+
+        // Check if Inertia is already installed
+        if ($this->isInertiaInstalled() && !$this->option('force')) {
+            $this->components->warn('Inertia.js appears to be already installed!');
+
+            if (!$this->confirm('Continue anyway?', false)) {
+                $this->components->info('Setup cancelled.');
+                return self::SUCCESS;
+            }
+        }
+
+        // Ask for language preference
+        if (!$this->option('typescript') && !$this->option('javascript')) {
+            $choice = $this->choice(
+                'Which language would you like to use?',
+                ['JavaScript', 'TypeScript'],
+                0
+            );
+            $this->useTypeScript = $choice === 'TypeScript';
+        } else {
+            $this->useTypeScript = $this->option('typescript');
+        }
+
+        // Ask for folder naming convention
+        if (!$this->option('lowercase') && !$this->option('capitalized')) {
+            $choice = $this->choice(
+                'Which folder naming convention would you like to use?',
+                ['lowercase (official Laravel starter kit)', 'Capitalized (Breeze)'],
+                0
+            );
+            $this->useLowercaseFolders = str_contains($choice, 'lowercase');
+        } else {
+            $this->useLowercaseFolders = $this->option('lowercase') ?? !$this->option('capitalized');
+        }
+
+        // Ask for Tailwind version
+        if (!$this->option('tailwind-v3') && !$this->option('tailwind-v4')) {
+            $choice = $this->choice(
+                'Which Tailwind CSS version would you like to use?',
+                ['v4 (latest - CSS-based config)', 'v3 (traditional config file)'],
+                0
+            );
+            $this->useTailwindV4 = str_contains($choice, 'v4');
+        } else {
+            $this->useTailwindV4 = $this->option('tailwind-v4') ?? !$this->option('tailwind-v3');
+        }
+
+        $this->components->info(
+            'Setting up with ' . ($this->useTypeScript ? 'TypeScript' : 'JavaScript') .
+            ', ' . ($this->useLowercaseFolders ? 'lowercase' : 'Capitalized') . ' folders' .
+            ', and Tailwind CSS ' . ($this->useTailwindV4 ? 'v4' : 'v3')
+        );
+        $this->newLine();
+
+        // Run setup steps
+        $this->installFrontendDependencies();
+        $this->createViteConfig();
+
+        // Only create tailwind.config.js and postcss.config.js for v3
+        if (!$this->useTailwindV4) {
+            $this->createTailwindConfig();
+            $this->createPostCSSConfig();
+        }
+
+        $this->createFolderStructure();
+        $this->createAppJs();
+        $this->createAppBlade();
+        $this->publishInertiaMiddleware();
+        $this->updateRoutes();
+        $this->createWelcomePage();
+
+        $this->newLine();
+        $this->components->info('Frontend stack setup complete! 🎉');
+        $this->newLine();
+
+        // Ask if they want to continue with VoltPanel installation
+        if ($this->confirm('Would you like to install VoltPanel now?', true)) {
+            $this->newLine();
+            $options = [
+                '--' . ($this->useTypeScript ? 'typescript' : 'javascript') => true,
+            ];
+
+            if ($this->option('force')) {
+                $options['--force'] = true;
+            }
+
+            return $this->call('voltpanel:install', $options);
+        }
+
+        $this->components->info('You can run "php artisan voltpanel:install" later to install VoltPanel.');
+
+        return self::SUCCESS;
+    }
+
+    protected function isInertiaInstalled(): bool
+    {
+        $packageJson = base_path('package.json');
+
+        if (!File::exists($packageJson)) {
+            return false;
+        }
+
+        $content = json_decode(File::get($packageJson), true);
+
+        return isset($content['dependencies']['@inertiajs/vue3'])
+            || isset($content['devDependencies']['@inertiajs/vue3']);
+    }
+
+    protected function installFrontendDependencies(): void
+    {
+        $this->components->info('Installing frontend dependencies...');
+
+        $packageManager = $this->detectPackageManager();
+
+        $dependencies = [
+            'vue',
+            '@inertiajs/vue3',
+            '@vitejs/plugin-vue',
+        ];
+
+        // Tailwind v4 doesn't need separate npm packages - it's imported via CSS
+        // Tailwind v3 needs npm packages
+        if (!$this->useTailwindV4) {
+            $dependencies = array_merge($dependencies, [
+                'tailwindcss',
+                'postcss',
+                'autoprefixer',
+            ]);
+        } else {
+            $dependencies[] = 'tailwindcss@next'; // v4 is still in beta
+        }
+
+        if ($this->useTypeScript) {
+            $dependencies = array_merge($dependencies, [
+                'typescript',
+                'vue-tsc',
+                '@types/node',
+            ]);
+        }
+
+        $command = match ($packageManager) {
+            'yarn' => 'yarn add -D ' . implode(' ', $dependencies),
+            'pnpm' => 'pnpm add -D ' . implode(' ', $dependencies),
+            default => 'npm install --save-dev ' . implode(' ', $dependencies),
+        };
+
+        $this->components->task("Installing packages with {$packageManager}", function () use ($command) {
+            $result = Process::path(base_path())
+                ->timeout(300)
+                ->run($command);
+
+            return $result->successful();
+        });
+    }
+
+    protected function createViteConfig(): void
+    {
+        $this->components->task('Creating vite.config.js', function () {
+            $viteConfig = $this->useTypeScript
+                ? $this->getViteConfigTypeScript()
+                : $this->getViteConfigJavaScript();
+
+            File::put(base_path('vite.config.js'), $viteConfig);
+
+            return true;
+        });
+    }
+
+    protected function getViteConfigJavaScript(): string
+    {
+        return <<<'JS'
+            import { defineConfig } from 'vite';
+            import laravel from 'laravel-vite-plugin';
+            import vue from '@vitejs/plugin-vue';
+
+            export default defineConfig({
+                plugins: [
+                    laravel({
+                        input: ['resources/css/app.css', 'resources/js/app.js'],
+                        refresh: true,
+                    }),
+                    vue({
+                        template: {
+                            transformAssetUrls: {
+                                base: null,
+                                includeAbsolute: false,
+                            },
+                        },
+                    }),
+                ],
+                resolve: {
+                    alias: {
+                        '@': '/resources/js',
+                    },
+                },
+            });
+        JS;
+    }
+
+    protected function getViteConfigTypeScript(): string
+    {
+        return <<<'TS'
+            import { defineConfig } from 'vite';
+            import laravel from 'laravel-vite-plugin';
+            import vue from '@vitejs/plugin-vue';
+
+            export default defineConfig({
+                plugins: [
+                    laravel({
+                        input: ['resources/css/app.css', 'resources/js/app.ts'],
+                        refresh: true,
+                    }),
+                    vue({
+                        template: {
+                            transformAssetUrls: {
+                                base: null,
+                                includeAbsolute: false,
+                            },
+                        },
+                    }),
+                ],
+                resolve: {
+                    alias: {
+                        '@': '/resources/js',
+                    },
+                },
+            });
+        TS;
+    }
+
+    protected function createTailwindConfig(): void
+    {
+        $this->components->task('Creating tailwind.config.js', function () {
+            $tailwindConfig = <<<'JS'
+/** @type {import('tailwindcss').Config} */
+export default {
+    darkMode: 'class',
+    content: [
+        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
+        './storage/framework/views/*.php',
+        './resources/views/**/*.blade.php',
+        './resources/js/**/*.vue',
+        './resources/js/**/*.js',
+        './resources/js/**/*.ts',
+    ],
+    theme: {
+        extend: {
+            colors: {
+                border: 'hsl(var(--border))',
+                input: 'hsl(var(--input))',
+                ring: 'hsl(var(--ring))',
+                background: 'hsl(var(--background))',
+                foreground: 'hsl(var(--foreground))',
+                primary: {
+                    DEFAULT: 'hsl(var(--primary))',
+                    foreground: 'hsl(var(--primary-foreground))',
+                },
+                secondary: {
+                    DEFAULT: 'hsl(var(--secondary))',
+                    foreground: 'hsl(var(--secondary-foreground))',
+                },
+                destructive: {
+                    DEFAULT: 'hsl(var(--destructive))',
+                    foreground: 'hsl(var(--destructive-foreground))',
+                },
+                muted: {
+                    DEFAULT: 'hsl(var(--muted))',
+                    foreground: 'hsl(var(--muted-foreground))',
+                },
+                accent: {
+                    DEFAULT: 'hsl(var(--accent))',
+                    foreground: 'hsl(var(--accent-foreground))',
+                },
+                popover: {
+                    DEFAULT: 'hsl(var(--popover))',
+                    foreground: 'hsl(var(--popover-foreground))',
+                },
+                card: {
+                    DEFAULT: 'hsl(var(--card))',
+                    foreground: 'hsl(var(--card-foreground))',
+                },
+            },
+        },
+    },
+    plugins: [],
+}
+JS;
+
+            File::put(base_path('tailwind.config.js'), $tailwindConfig);
+
+            return true;
+        });
+    }
+
+    protected function createPostCSSConfig(): void
+    {
+        $this->components->task('Creating postcss.config.js', function () {
+            $postcssConfig = <<<'JS'
+export default {
+    plugins: {
+        tailwindcss: {},
+        autoprefixer: {},
+    },
+}
+JS;
+
+            File::put(base_path('postcss.config.js'), $postcssConfig);
+
+            return true;
+        });
+    }
+
+    protected function createAppJs(): void
+    {
+        $extension = $this->useTypeScript ? 'ts' : 'js';
+
+        $this->components->task("Creating resources/js/app.{$extension}", function () use ($extension) {
+            $appJs = $this->useTypeScript
+                ? $this->getAppJsTypeScript()
+                : $this->getAppJsJavaScript();
+
+            File::ensureDirectoryExists(resource_path('js'));
+            File::put(resource_path("js/app.{$extension}"), $appJs);
+
+            // Create CSS file
+            File::ensureDirectoryExists(resource_path('css'));
+            File::put(resource_path('css/app.css'), $this->getAppCss());
+
+            return true;
+        });
+    }
+
+    protected function getAppJsJavaScript(): string
+    {
+        $pagesFolder = $this->useLowercaseFolders ? 'pages' : 'Pages';
+
+        return <<<JS
+import './bootstrap';
+import '../css/app.css';
+
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+
+const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+createInertiaApp({
+    title: (title) => `\${title} - \${appName}`,
+    resolve: (name) => resolvePageComponent(`./{$pagesFolder}/\${name}.vue`, import.meta.glob('./{$pagesFolder}/**/*.vue')),
+    setup({ el, App, props, plugin }) {
+        return createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .mount(el);
+    },
+    progress: {
+        color: '#4B5563',
+    },
+});
+JS;
+    }
+
+    protected function getAppJsTypeScript(): string
+    {
+        $pagesFolder = $this->useLowercaseFolders ? 'pages' : 'Pages';
+
+        return <<<TS
+import './bootstrap';
+import '../css/app.css';
+
+import { createApp, h, DefineComponent } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+
+const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+createInertiaApp({
+    title: (title) => `\${title} - \${appName}`,
+    resolve: (name) => resolvePageComponent(`./{$pagesFolder}/\${name}.vue`, import.meta.glob<DefineComponent>('./{$pagesFolder}/**/*.vue')),
+    setup({ el, App, props, plugin }) {
+        return createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .mount(el);
+    },
+    progress: {
+        color: '#4B5563',
+    },
+});
+TS;
+    }
+
+    protected function getAppCss(): string
+    {
+        if ($this->useTailwindV4) {
+            return $this->getAppCssV4();
+        }
+
+        return $this->getAppCssV3();
+    }
+
+    protected function getAppCssV3(): string
+    {
+        return <<<'CSS'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 47.4% 11.2%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 47.4% 11.2%;
+        --primary: 222.2 47.4% 11.2%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 100% 50%;
+        --destructive-foreground: 210 40% 98%;
+        --ring: 215 20.2% 65.1%;
+    }
+
+    .dark {
+        --background: 224 71% 4%;
+        --foreground: 213 31% 91%;
+        --muted: 223 47% 11%;
+        --muted-foreground: 215.4 16.3% 56.9%;
+        --accent: 216 34% 17%;
+        --accent-foreground: 210 40% 98%;
+        --popover: 224 71% 4%;
+        --popover-foreground: 215 20.2% 65.1%;
+        --border: 216 34% 17%;
+        --input: 216 34% 17%;
+        --card: 224 71% 4%;
+        --card-foreground: 213 31% 91%;
+        --primary: 210 40% 98%;
+        --primary-foreground: 222.2 47.4% 1.2%;
+        --secondary: 222.2 47.4% 11.2%;
+        --secondary-foreground: 210 40% 98%;
+        --destructive: 0 63% 31%;
+        --destructive-foreground: 210 40% 98%;
+        --ring: 216 34% 17%;
+    }
+}
+CSS;
+    }
+
+    protected function getAppCssV4(): string
+    {
+        return <<<'CSS'
+@import 'tailwindcss';
+
+@plugin "@tailwindcss/forms";
+@plugin "tailwindcss-animate";
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../../resources/views/**/*.blade.php';
+@source '../../resources/js/**/*.vue';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    /* Include Tailwind's default color palette */
+    --color-slate-*: initial;
+    --color-gray-*: initial;
+    --color-zinc-*: initial;
+    --color-neutral-*: initial;
+    --color-stone-*: initial;
+    --color-red-*: initial;
+    --color-orange-*: initial;
+    --color-amber-*: initial;
+    --color-yellow-*: initial;
+    --color-lime-*: initial;
+    --color-green-*: initial;
+    --color-emerald-*: initial;
+    --color-teal-*: initial;
+    --color-cyan-*: initial;
+    --color-sky-*: initial;
+    --color-blue-*: initial;
+    --color-indigo-*: initial;
+    --color-violet-*: initial;
+    --color-purple-*: initial;
+    --color-fuchsia-*: initial;
+    --color-pink-*: initial;
+    --color-rose-*: initial;
+
+    /* Custom font family */
+    --font-family-sans: Figtree, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Custom animations */
+    --animate-accordion-down: accordion-down 0.2s ease-out;
+    --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@theme inline {
+    /* Border radius */
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    /* Custom colors mapped to CSS variables */
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+}
+
+/* Keyframe animations */
+@keyframes accordion-down {
+    from {
+        height: 0;
+    }
+    to {
+        height: var(--radix-accordion-content-height);
+    }
+}
+
+@keyframes accordion-up {
+    from {
+        height: var(--radix-accordion-content-height);
+    }
+    to {
+        height: 0;
+    }
+}
+
+/* Base styles */
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground font-sans antialiased;
+    }
+}
+
+/* CSS Variables - Light mode */
+:root {
+    --background: hsl(0 0% 100%);
+    --foreground: hsl(0 0% 3.9%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(0 0% 3.9%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(0 0% 3.9%);
+    --primary: hsl(0 0% 9%);
+    --primary-foreground: hsl(0 0% 98%);
+    --secondary: hsl(0 0% 92.1%);
+    --secondary-foreground: hsl(0 0% 9%);
+    --muted: hsl(0 0% 96.1%);
+    --muted-foreground: hsl(0 0% 45.1%);
+    --accent: hsl(0 0% 96.1%);
+    --accent-foreground: hsl(0 0% 9%);
+    --destructive: hsl(0 84.2% 60.2%);
+    --destructive-foreground: hsl(0 0% 98%);
+    --border: hsl(0 0% 92.8%);
+    --input: hsl(0 0% 89.8%);
+    --ring: hsl(0 0% 3.9%);
+    --chart-1: hsl(12 76% 61%);
+    --chart-2: hsl(173 58% 39%);
+    --chart-3: hsl(197 37% 24%);
+    --chart-4: hsl(43 74% 66%);
+    --chart-5: hsl(27 87% 67%);
+    --radius: 0.5rem;
+}
+
+/* CSS Variables - Dark mode */
+.dark {
+    --background: hsl(0 0% 3.9%);
+    --foreground: hsl(0 0% 98%);
+    --card: hsl(0 0% 3.9%);
+    --card-foreground: hsl(0 0% 98%);
+    --popover: hsl(0 0% 3.9%);
+    --popover-foreground: hsl(0 0% 98%);
+    --primary: hsl(0 0% 98%);
+    --primary-foreground: hsl(0 0% 9%);
+    --secondary: hsl(0 0% 14.9%);
+    --secondary-foreground: hsl(0 0% 98%);
+    --muted: hsl(0 0% 16.08%);
+    --muted-foreground: hsl(0 0% 63.9%);
+    --accent: hsl(0 0% 14.9%);
+    --accent-foreground: hsl(0 0% 98%);
+    --destructive: hsl(0 84% 60%);
+    --destructive-foreground: hsl(0 0% 98%);
+    --border: hsl(0 0% 14.9%);
+    --input: hsl(0 0% 14.9%);
+    --ring: hsl(0 0% 83.1%);
+    --chart-1: hsl(220 70% 50%);
+    --chart-2: hsl(160 60% 45%);
+    --chart-3: hsl(30 80% 55%);
+    --chart-4: hsl(280 65% 60%);
+    --chart-5: hsl(340 75% 55%);
+}
+CSS;
+    }
+
+    protected function createAppBlade(): void
+    {
+        $this->components->task('Creating resources/views/app.blade.php', function () {
+            $extension = $this->useTypeScript ? 'ts' : 'js';
+
+            $appBlade = <<<BLADE
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+
+        <!-- Scripts -->
+        @routes
+        @vite(['resources/css/app.css', 'resources/js/app.{$extension}'])
+        @inertiaHead
+    </head>
+    <body class="font-sans antialiased">
+        @inertia
+    </body>
+</html>
+BLADE;
+
+            File::ensureDirectoryExists(resource_path('views'));
+            File::put(resource_path('views/app.blade.php'), $appBlade);
+
+            return true;
+        });
+    }
+
+    protected function publishInertiaMiddleware(): void
+    {
+        $this->components->task('Publishing Inertia middleware', function () {
+            // Install Inertia package first if not installed
+            if (!File::exists(base_path('vendor/inertiajs/inertia-laravel'))) {
+                Process::path(base_path())
+                    ->timeout(300)
+                    ->run('composer require inertiajs/inertia-laravel --no-interaction');
+            }
+
+            // Publish middleware
+            $this->callSilent('inertia:middleware', ['--force' => $this->option('force')]);
+
+            // Add middleware to bootstrap/app.php or Kernel
+            $this->addInertiaMiddleware();
+
+            return true;
+        });
+    }
+
+    protected function addInertiaMiddleware(): void
+    {
+        $bootstrapApp = base_path('bootstrap/app.php');
+
+        if (File::exists($bootstrapApp)) {
+            $content = File::get($bootstrapApp);
+
+            // Check if middleware is already added
+            if (!str_contains($content, 'HandleInertiaRequests')) {
+                // Add to web middleware group (Laravel 11 style)
+                $content = str_replace(
+                    '->withMiddleware(function (Middleware $middleware) {',
+                    "->withMiddleware(function (Middleware \$middleware) {\n        \$middleware->web(append: [\n            \\App\\Http\\Middleware\\HandleInertiaRequests::class,\n        ]);",
+                    $content
+                );
+
+                File::put($bootstrapApp, $content);
+            }
+        }
+    }
+
+    protected function updateRoutes(): void
+    {
+        $this->components->task('Updating routes/web.php', function () {
+            $webRoutes = base_path('routes/web.php');
+
+            if (File::exists($webRoutes)) {
+                $content = File::get($webRoutes);
+
+                // Add example Inertia route if not exists
+                if (!str_contains($content, 'Inertia::render')) {
+                    $exampleRoute = <<<'PHP'
+
+
+use Inertia\Inertia;
+
+Route::get('/', function () {
+    return Inertia::render('Welcome');
+});
+PHP;
+
+                    File::append($webRoutes, $exampleRoute);
+                }
+            }
+
+            return true;
+        });
+    }
+
+    protected function createFolderStructure(): void
+    {
+        $this->components->task('Creating folder structure', function () {
+            $folders = $this->useLowercaseFolders
+                ? ['pages', 'components', 'layouts', 'composables']
+                : ['Pages', 'Components', 'Layouts', 'Composables'];
+
+            foreach ($folders as $folder) {
+                File::ensureDirectoryExists(resource_path("js/{$folder}"));
+            }
+
+            return true;
+        });
+    }
+
+    protected function createWelcomePage(): void
+    {
+        $this->components->task('Creating Welcome page', function () {
+            $pagesFolder = $this->useLowercaseFolders ? 'pages' : 'Pages';
+
+            $welcomePage = <<<'VUE'
+<script setup>
+import { Head } from '@inertiajs/vue3';
+</script>
+
+<template>
+    <Head title="Welcome" />
+
+    <div class="min-h-screen bg-background flex items-center justify-center">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-foreground mb-4">
+                Welcome to Laravel + Vue + Inertia
+            </h1>
+            <p class="text-muted-foreground mb-8">
+                Your frontend stack is ready! Install VoltPanel to get started with your admin panel.
+            </p>
+            <div class="space-x-4">
+                <a
+                    href="https://inertiajs.com"
+                    target="_blank"
+                    class="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
+                >
+                    Inertia.js Docs
+                </a>
+                <a
+                    href="https://vuejs.org"
+                    target="_blank"
+                    class="inline-block px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 transition"
+                >
+                    Vue.js Docs
+                </a>
+            </div>
+        </div>
+    </div>
+</template>
+VUE;
+
+            File::put(resource_path("js/{$pagesFolder}/Welcome.vue"), $welcomePage);
+
+            return true;
+        });
+    }
+
+    protected function detectPackageManager(): string
+    {
+        $basePath = base_path();
+
+        if (File::exists("{$basePath}/pnpm-lock.yaml")) {
+            return 'pnpm';
+        }
+
+        if (File::exists("{$basePath}/yarn.lock")) {
+            return 'yarn';
+        }
+
+        return 'npm';
+    }
+}

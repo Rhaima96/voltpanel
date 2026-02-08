@@ -1,0 +1,75 @@
+{
+    "name": "@rhaima/voltpanel",
+    "version": "1.0.0",
+    "description": "A powerful admin panel builder for Laravel using the VILT stack (Vue, Inertia, Laravel, Tailwind)",
+    "keywords": [
+        "laravel",
+        "admin",
+        "panel",
+        "vue",
+        "inertia",
+        "tailwind",
+        "crud",
+        "vilt"
+    ],
+    "author": "Rhaima <rhaima@voltpanel.dev>",
+    "license": "MIT",
+    "peerDependencies": {
+        "@inertiajs/vue3": "^2.0.0",
+        "@tailwindcss/forms": "^0.5.3",
+        "@tailwindcss/vite": "^4.0.0",
+        "@tiptap/extension-color": "^2.10.0",
+        "@tiptap/extension-highlight": "^2.10.0",
+        "@tiptap/extension-image": "^2.10.0",
+        "@tiptap/extension-link": "^2.10.0",
+        "@tiptap/extension-text-align": "^2.10.0",
+        "@tiptap/extension-text-style": "^2.10.0",
+        "@tiptap/extension-underline": "^2.10.0",
+        "@tiptap/extension-youtube": "^2.10.0",
+        "@tiptap/pm": "^2.10.0",
+        "@tiptap/starter-kit": "^2.10.0",
+        "@tiptap/vue-3": "^2.10.0",
+        "@types/node": "^22.0.0",
+        "@vitejs/plugin-vue": "^6.0.0",
+        "autoprefixer": "^10.4.12",
+        "axios": "^1.11.0",
+        "chart.js": "^4.4.0",
+        "chartjs-adapter-date-fns": "^3.0.0",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "date-fns": "^3.0.0",
+        "laravel-vite-plugin": "^2.0.0",
+        "postcss": "^8.4.31",
+        "radix-vue": "^1.9.17",
+        "shadcn-vue": "^0.10.0",
+        "tailwind-merge": "^3.4.0",
+        "tailwindcss": "^3.2.1",
+        "tailwindcss-animate": "^1.0.7",
+        "tiptap-extension-resize-image": "^1.1.8",
+        "typescript": "^5.7.0",
+        "vite": "^7.0.7",
+        "vue": "^3.4.0",
+        "vue-chartjs": "^5.3.0",
+        "vue-tsc": "^2.0.0"
+    },
+    "peerDependenciesMeta": {
+        "@inertiajs/vue3": {
+            "optional": false
+        },
+        "vue": {
+            "optional": false
+        },
+        "tailwindcss": {
+            "optional": false
+        },
+        "@types/node": {
+            "optional": true
+        },
+        "typescript": {
+            "optional": true
+        },
+        "vue-tsc": {
+            "optional": true
+        }
+    }
+}
